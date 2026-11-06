@@ -1,0 +1,112 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Audiation Trainer</title>
+<style>
+:root{--bg:#eef1f3;--fg:#13202c;--mut:#5d6b78;--card:#fff;--ln:#cfd7de;--ac:#a8741a;--pt:#0a7f94;--ok:#1b8a52;--bad:#c2412f;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1a27;--fg:#e8eef3;--mut:#8ea0b0;--card:#142638;--ln:#2a3f54;--ac:#e0b050;--pt:#5fc4d8;--ok:#5ccf93;--bad:#ef7d6b;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0d1a27;--fg:#e8eef3;--mut:#8ea0b0;--card:#142638;--ln:#2a3f54;--ac:#e0b050;--pt:#5fc4d8;--ok:#5ccf93;--bad:#ef7d6b;color-scheme:dark}
+html,body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:480px;margin:0 auto;padding:18px 18px 40px}
+h1{font:600 26px Georgia,serif;margin:8px 0 4px}p{color:var(--mut);margin:4px 0 14px}
+.row{display:flex;gap:8px;margin:6px 0 16px}.row button{flex:1}
+button{font:inherit;padding:12px 8px;border:1px solid var(--ln);background:var(--card);color:var(--fg);border-radius:10px;cursor:pointer}
+button.on{border-color:var(--ac);box-shadow:inset 0 0 0 1px var(--ac)}
+button:focus-visible{outline:2px solid var(--pt);outline-offset:2px}
+.go{width:100%;background:var(--ac);color:var(--bg);border:0;font-weight:600;padding:16px;font-size:18px}
+.lb{font-size:14px;color:var(--mut);margin-top:4px}
+.top{display:flex;justify-content:space-between;color:var(--mut);font-size:14px}
+#ph{margin:28px 0 6px;text-align:center;color:var(--mut)}
+#big{font:600 44px/1.15 Georgia,serif;text-align:center;min-height:100px;margin:6px 0}
+#pr{text-align:center;min-height:44px}
+.m{position:relative;height:54px;margin:22px 0;border-top:1px solid var(--ln);border-bottom:1px solid var(--ln)}
+.m i{position:absolute;top:0;bottom:0;background:var(--pt);opacity:.15;left:calc(50% - var(--w))}
+.m b{position:absolute;left:50%;top:-6px;bottom:-6px;width:2px;background:var(--ac)}
+#nd{position:absolute;top:8px;bottom:8px;width:6px;border-radius:3px;background:var(--pt);left:50%;margin-left:-3px;opacity:0;transition:left .06s}
+#fb{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;min-height:64px}
+.c{padding:6px 10px;border:1px solid var(--ln);border-radius:8px;text-align:center;font-size:14px}
+.c.ok{border-color:var(--ok);color:var(--ok)}.c.no{border-color:var(--bad);color:var(--bad)}
+.c span{display:block;font:600 18px Georgia,serif}
+table{width:100%;border-collapse:collapse;margin:12px 0}td{padding:8px 4px;border-bottom:1px solid var(--ln)}td:last-child{text-align:right}
+.hid{display:none}
+</style></head><body><main>
+<section id="home"><h1>Audiation Trainer</h1><p>Hear it, hold it in your head, then sing it. Use headphones so the mic only hears you.</p>
+<div class="lb">Session length</div><div class="row" id="gm"><button data-v="10" class="on">10 min</button><button data-v="20">20 min</button><button data-v="30">30 min</button><button data-v="45">45 min</button></div>
+<div class="lb">Pitch tolerance</div><div class="row" id="gt"><button data-v="50">±50 ¢</button><button data-v="25" class="on">±25 ¢</button><button data-v="15">±15 ¢</button></div>
+<div class="lb">Your voice</div><div class="row" id="gv"><button data-v="47">Low</button><button data-v="52" class="on">Mid</button><button data-v="57">High</button></div>
+<button class="go" id="st">Start today’s session</button><p id="err" style="color:var(--bad)"></p>
+<div class="lb">Current levels</div><table id="lv"></table></section>
+<section id="ses" class="hid"><div class="top"><span id="mn"></span><span id="tm"></span></div><div id="ph"></div><div id="big"></div><div id="pr"></div>
+<div class="m"><i id="bd"></i><b></b><div id="nd"></div></div><div id="fb"></div><button id="sp" style="width:100%;margin-top:18px">End session</button></section>
+<section id="end" class="hid"><h1>Session done</h1><table id="sm"></table><button class="go" id="bk">Back to start</button></section>
+</main>
+<script>
+const $=s=>document.querySelector(s),R=a=>a[Math.random()*a.length|0],sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const SYL='Do Di re mo mi fa fi so zi la to ti'.split(' ');
+const SC={major:[0,2,4,5,7,9,11],minor:[0,2,3,5,7,8,10],dorian:[0,2,3,5,7,9,10],mixolydian:[0,2,4,5,7,9,10],lydian:[0,2,4,6,7,9,11],phrygian:[0,1,3,5,7,8,10],'harmonic minor':[0,2,3,5,7,8,11],'melodic minor':[0,2,3,5,7,9,11]};
+const MODS=['melody','speed','scale','harmony','silent','drone','degree'];
+const NM={melody:'Melody to solfa',speed:'Speed ID',scale:'Scale from the heart',harmony:'Harmonic architecture',silent:'Silent continuation',drone:'Drone removal',degree:'Degree targeting'};
+const DN={3:'the minor 3rd',4:'the major 3rd',6:'the flat 5',7:'the 5th',12:'the octave'};
+let S={min:10,tol:25,base:52,ac:null,an:null,buf:null,stop:false,st:{}};
+try{S.st=JSON.parse(localStorage.getItem('aud1'))||{}}catch(e){}
+const save=()=>{try{localStorage.setItem('aud1',JSON.stringify(S.st))}catch(e){}};
+const lvl=m=>(S.st[m]||{l:1}).l;
+function showLv(){$('#lv').innerHTML=MODS.map(m=>`<tr><td>${NM[m]}</td><td>Level ${lvl(m)}</td></tr>`).join('')}showLv();
+for(const g of ['gm','gt','gv'])$('#'+g).onclick=e=>{const b=e.target.closest('button');if(!b)return;[...$('#'+g).children].forEach(x=>x.classList.remove('on'));b.classList.add('on');S[{gm:'min',gt:'tol',gv:'base'}[g]]=+b.dataset.v};
+const m2f=m=>440*2**((m-69)/12);
+function tone(m,t,d,v=.22,ty='triangle'){const o=S.ac.createOscillator(),g=S.ac.createGain();o.type=ty;o.frequency.value=m2f(m);g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(v,t+.03);g.gain.setValueAtTime(v,t+d-.08);g.gain.linearRampToValueAtTime(0,t+d);o.connect(g).connect(S.ac.destination);o.start(t);o.stop(t+d+.05);return g}
+function pitch(){S.an.getFloatTimeDomainData(S.buf);const b=S.buf,W=1024,sr=S.ac.sampleRate;let e=0;for(let i=0;i<W;i++)e+=b[i]*b[i];if(Math.sqrt(e/W)<.012)return null;
+const mn=Math.floor(sr/900),mx=Math.min(Math.floor(sr/75),b.length-W-2),n=[];
+for(let t=mn-1;t<=mx+1;t++){let a=0,d=0;for(let i=0;i<W;i++){a+=b[i]*b[i+t];d+=b[i]*b[i]+b[i+t]*b[i+t]}n[t]=2*a/d}
+let t=mn;while(t<mx&&n[t]>0)t++;const pk=[];let top=0;
+for(;t<mx;t++)if(n[t]>n[t-1]&&n[t]>=n[t+1]&&n[t]>.5){pk.push(t);top=Math.max(top,n[t])}
+if(top<.6)return null;const p=pk.find(x=>n[x]>=.9*top),a=n[p-1],c=n[p+1],q=n[p],sh=.5*(a-c)/(a-2*q+c||1);
+return 69+12*Math.log2(sr/(p+(isFinite(sh)?sh:0))/440)}
+const fold=c=>((c%1200)+1800)%1200-600;
+function listen(tg,tn,onlock){return new Promise(res=>{const out=[],h=[];let armed=true,last=null,unv=0,t0=performance.now(),lt=t0;
+const iv=setInterval(()=>{const now=performance.now();if(S.stop){clearInterval(iv);return res(out)}const p=pitch();
+if(p==null){unv++;h.length=0;if(unv>3)armed=true;$('#nd').style.opacity=0}else{unv=0;h.push(p);if(h.length>9)h.shift();
+const k=Math.min(out.length,tg.length-1),er=Math.max(-100,Math.min(100,fold((p-(tn+tg[k]))*100)));$('#nd').style.opacity=1;$('#nd').style.left=(50+er/2.2)+'%';
+if(armed&&h.length>=8){const s=[...h].sort((a,b)=>a-b);if(s[8]-s[0]<.6){out.push({m:s[4],rt:now-t0});armed=false;last=s[4];h.length=0;lt=now;t0=now;onlock&&onlock(out.length)}}
+else if(!armed&&Math.abs(p-last)>.7){armed=true;h.length=0}}
+if(out.length>=tg.length||now-lt>7000){clearInterval(iv);res(out)}},30)})}
+function make(m,L,tn){const N=(o,t,d=.5,v)=>tone(tn+o,t,d,v),T=S.ac.currentTime+.1;let d={};
+const all=[...Array(12).keys()],pool=[[0,2,4,5,7],SC.major,[...SC.major,1,6],all][L-1],ph=(a,t0,g)=>a.forEach((o,i)=>N(o,t0+i*g,g-.05));
+if(m=='melody'){const n=Math.min(2+L,6),tg=Array.from({length:n},()=>R(pool));N(0,T,.7);ph(tg,T+1,.6);d={ms:1000+n*600,tg,pr:'Sing the phrase in solfa'}}
+else if(m=='speed'){const x=R(pool);N(0,T,.8);d={ms:900,tg:[x],big:SYL[x],pr:'Sing it fast'}}
+else if(m=='scale'){const nm=R(Object.keys(SC).slice(0,[1,2,5,8][L-1]));N(0,T,.8);d={ms:900,tg:[...SC[nm],12],pr:'Sing the '+nm+' scale up'}}
+else if(m=='harmony'){const M=[0,4,7],mi=[0,3,7],P=[[[0,M],[5,M],[7,M],[0,M]],[[0,M],[9,mi],[5,M],[7,M]],[[2,mi],[7,M],[0,M]],[[0,M],[9,mi],[2,mi],[7,M],[0,M]]][L-1];
+P.forEach(([r,q],i)=>q.forEach(x=>N(r+x-12,T+i*1.1,1,.1)));d={ms:P.length*1100,tg:P.map(x=>x[0]),pr:'Sing the bass line (roots)'}}
+else if(m=='silent'){const p=[[0,2,4,5,7,9,11,12],[12,11,9,7,5,4,2,0],[0,4,2,5,4,7,5,9],[0,2,3,5,7,8,10,12]][L-1];ph(p.slice(0,4),T,.6);d={ms:2600,tg:p.slice(4),pr:'The sound stops. Keep going in time, 4 more notes'}}
+else if(m=='drone'){const g=tone(tn,T,40,.12,'sine');d={ms:3000,tg:[[0,7,0],[0,7,0,4,0],[0,4,7,4,0,9,0],[0,6,0,10,0,3,0]][L-1],pr:'Sing Do. The drone fades after your first note',drone:g}}
+else{const x=R([3,4,7,12]),p=R(SC.major.slice(1));
+if(L==1){N(0,T,.9);d={ms:1000,tg:[x],pr:'This is Do. Sing '+DN[x]}}
+else if(L==2){const y=R([2,4,5,9]);N(0,T,.7);N(p,T+.9,.9);d={ms:1900,tg:[y],pr:'This is '+SYL[p]+'. Sing '+SYL[y]+' of the key'}}
+else{const iv=R([3,4,6,7]);N(0,T,.7);N(p,T+.9,.9);d={ms:1900,tg:[p+iv],pr:'This is '+SYL[p]+'. Sing '+DN[iv]+' above it'}}}
+return d}
+const wsum=m=>{const h=(S.st[m]||{}).h||[];return h.length?1.3-h.reduce((a,b)=>a+b,0)/h.length:1}
+function pick(last){let c=MODS.filter(m=>m!=last),w=c.map(wsum),s=w.reduce((a,b)=>a+b),r=Math.random()*s;for(let i=0;i<c.length;i++){r-=w[i];if(r<=0)return c[i]}return c[0]}
+async function run(){S.stop=false;S.log={};const end=Date.now()+S.min*60000;let last=null;
+const tk=setInterval(()=>{const r=Math.max(0,end-Date.now());$('#tm').textContent=Math.floor(r/60000)+':'+String(Math.floor(r/1000)%60).padStart(2,'0')},500);
+await sleep(300);
+while(Date.now()<end&&!S.stop){const m=pick(last);last=m;const L=lvl(m),tn=S.base+Math.floor(Math.random()*6);
+$('#mn').textContent=NM[m]+' · level '+L;$('#big').textContent='';$('#pr').textContent='';$('#fb').innerHTML='';$('#nd').style.opacity=0;$('#ph').textContent='Listen';
+const d=make(m,L,tn);await sleep(d.ms+400);if(S.stop)break;$('#ph').textContent='Hold it in your head';await sleep(m=='drone'?200:1500);if(S.stop)break;
+$('#ph').textContent='Sing';$('#big').textContent=d.big||'';$('#pr').textContent=d.pr;
+const o=await listen(d.tg,tn,n=>{if(n==1&&d.drone){d.drone.gain.cancelScheduledValues(S.ac.currentTime);d.drone.gain.setValueAtTime(d.drone.gain.value,S.ac.currentTime);d.drone.gain.linearRampToValueAtTime(0,S.ac.currentTime+1.5)}});
+if(d.drone){d.drone.gain.cancelScheduledValues(S.ac.currentTime);d.drone.gain.linearRampToValueAtTime(0,S.ac.currentTime+.3)}
+if(S.stop)break;let hit=0;$('#ph').textContent='Result';
+$('#fb').innerHTML=d.tg.map((t,i)=>{const s=o[i],e=s?Math.round(fold((s.m-(tn+t))*100)):null,ok=s&&Math.abs(e)<=S.tol;if(ok)hit++;
+return `<div class="c ${ok?'ok':'no'}"><span>${SYL[((t%12)+12)%12]}</span>${s?(e>0?'+':'')+e+' ¢':'missed'}${m=='speed'&&s?' · '+(s.rt/1000).toFixed(1)+' s':''}</div>`}).join('');
+const sc=hit/d.tg.length,z=S.st[m]=S.st[m]||{l:1,h:[]};z.h.push(sc);z.h=z.h.slice(-6);
+const q=z.h.slice(-3);if(q.length==3&&q.every(x=>x>=.8)&&z.l<4){z.l++;z.h=[]}else if(q.length==3&&q.every(x=>x<.3)&&z.l>1){z.l--;z.h=[]}
+(S.log[m]=S.log[m]||[]).push(sc);save();await sleep(2200)}
+clearInterval(tk);if(S.mic)S.mic.getTracks().forEach(t=>t.stop());finish()}
+function finish(){$('#ses').classList.add('hid');$('#end').classList.remove('hid');
+$('#sm').innerHTML=MODS.filter(m=>S.log[m]).map(m=>{const a=S.log[m];return `<tr><td>${NM[m]}</td><td>${Math.round(100*a.reduce((x,y)=>x+y)/a.length)}% over ${a.length}</td></tr>`}).join('')||'<tr><td>No drills completed.</td></tr>';showLv()}
+$('#st').onclick=async()=>{$('#err').textContent='';try{S.ac=new(window.AudioContext||window.webkitAudioContext)();await S.ac.resume();
+S.mic=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}}).catch(()=>navigator.mediaDevices.getUserMedia({audio:true}));
+const src=S.ac.createMediaStreamSource(S.mic);S.an=S.ac.createAnalyser();S.an.fftSize=2048;S.buf=new Float32Array(2048);src.connect(S.an)}
+catch(e){const n=(e&&e.name)||'error';$('#err').textContent=(n=='NotAllowedError'||n=='SecurityError'?'The browser is refusing the mic for this page ('+n+'). If this page is open inside the Claude app or a preview, open its link in Chrome or Safari as its own tab and try again. ':n=='NotFoundError'?'No microphone was found. ':'Something went wrong ('+n+'): '+((e&&e.message)||'')+'. ')+'Fix that, then tap Start again.';return}
+$('#bd').style.setProperty('--w',(S.tol/2.2)+'%');$('#bd').style.width=(S.tol/1.1)+'%';
+$('#home').classList.add('hid');$('#ses').classList.remove('hid');run()};
+$('#sp').onclick=()=>{S.stop=true};
+$('#bk').onclick=()=>{$('#end').classList.add('hid');$('#home').classList.remove('hid')};
+</script></body></html>
